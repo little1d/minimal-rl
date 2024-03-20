@@ -18,6 +18,7 @@ learning_rate = 0.002
 # 折扣因子，用来平衡当前即时奖励和未来长期奖励的影响，当折扣因子接近于1时，算法倾向于长期奖励；当折扣因子接近于0时，算法倾向于即时奖励。
 gamma = 0.98
 n_rollout = 10
+texts = []
 
 class ActorCritic(nn.Module):
     def __init__(self):
@@ -97,9 +98,6 @@ def main():
                 if done:
                     break
                 
-           
-            
-            
             model.train_net()
             
         print(f"Episode: {n_epi}, Action: {a}, Reward: {r}, Done: {done}")
@@ -108,9 +106,12 @@ def main():
         
         if n_epi % print_interval == 0 and n_epi != 0:
             print("# of episode :{}, avg score : {:.1f}".format(n_epi, score/print_interval))
+            swanlab.log({"epoch": n_epi, "avg_score": score/print_interval})
             score = 0.0
         env.close()
-        
+    
+    print(texts)
+
     
 if __name__ == '__main__':
     main()
