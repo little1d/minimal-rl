@@ -5,6 +5,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from torch.distributions import Categorical
+import swanlab
+
+run = swanlab.init(
+    experiment_name="actor_critic",
+    description="Actor Critic Algorithm with CartPole-v1 env",
+    logdir="./swanlog",
+)
 
 # Hyperparameters
 learning_rate = 0.002
@@ -83,14 +90,22 @@ def main():
                 s_prime, r, done, truncated, info = env.step(a)
                 model.put_data((s, a, r, s_prime, done))
                 
+
                 s = s_prime
                 score += r
                 
                 if done:
                     break
                 
+           
+            
+            
             model.train_net()
             
+        print(f"Episode: {n_epi}, Action: {a}, Reward: {r}, Done: {done}")
+        text = swanlab.Text(f"Episode: {n_epi}, Action: {a}, Reward: {r}, Done: {done}", caption=f"{n_epi}")
+        run.log({"examples": text})
+        
         if n_epi % print_interval == 0 and n_epi != 0:
             print("# of episode :{}, avg score : {:.1f}".format(n_epi, score/print_interval))
             score = 0.0
