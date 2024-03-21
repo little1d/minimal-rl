@@ -2,10 +2,19 @@ import gym
 import collections
 import random
 
+import swanlab
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
+# swanlab init
+swanlab.init(
+    experiment_name="dqn",
+    description= "a simple rl task",
+    logdir="./swanlog",
+)
+
 
 #Hyperparameters
 learning_rate = 0.0005
@@ -108,6 +117,7 @@ def main():
             q_target.load_state_dict(q.state_dict())
             print("n_episode :{}, score : {:.1f}, n_buffer : {}, eps : {:.1f}%".format(
                                                             n_epi, score/print_interval, memory.size(), epsilon*100))
+            swanlab.log({"score": score/print_interval, "n_buffer": memory.size(), "eps": epsilon*100})
             score = 0.0
     env.close()
 
