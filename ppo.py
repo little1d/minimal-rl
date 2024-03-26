@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
+import numpy as np
 
 import swanlab
 
@@ -23,6 +24,10 @@ swanlab.init(
     logdir="./swanlog",
 )
 
+
+# cuda
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f'Training on {device}')
 
 class PPO(nn.Module):
     def __init__(self):
@@ -68,11 +73,16 @@ class PPO(nn.Module):
             done_mask = 0 if done else 1
             done_lst.append([done_mask])
             
-        s,a,r,s_prime,done_mask, prob_a = torch.tensor(s_lst, dtype=torch.float), torch.tensor(a_lst), \
-                                          torch.tensor(r_lst), torch.tensor(s_prime_lst, dtype=torch.float), \
-                                          torch.tensor(done_lst, dtype=torch.float), torch.tensor(prob_a_lst)
+            # 将列表直接转换为numpy数组，然后转换为张量
+            s,a,r,s_prime,done_mask, prob_a = torch.tensor(np.array(s_lst), dtype=torch.float).to(device), \
+                                            torch.tensor(np.array(a_lst), dtype=torch.long).to(device), \
+                                            torch.tensor(np.array(r_lst), dtype=torch.float).to(device), \
+                                            torch.tensor(np.array(s_prime_lst), dtype=torch.float).to(device), \
+                                            torch.tensor(np.array(done_lst), dtype=torch.float).to(device), \
+                                            torch.tensor(np.array(prob_a_lst), dtype=torch.float).to(device)
+
         self.data = []
-        return s, a, r, s_prime, done_mask, prob_a
+        return s.to(device), a.to(device), r.to(device), s_prime.to(device), done_mask.to(device), prob_a.to(device)
     
     # 更新策略网络和价值网络
     def train_net(self):
@@ -83,16 +93,16 @@ class PPO(nn.Module):
         for i in range(K_epoch):
             td_target = r + gamma * self.v(s_prime) * done_mask
         delta = td_target - self.v(s)
-        delta = delta.detach().numpy()
+        delta = delta.detach().cpu().numpy()
 
-        # 计算有事函数
+        # 计算优势函数
         advantage_lst = []
         advantage = 0.0
         for delta_t in delta[::-1]:
             advantage = gamma * lmbda * advantage + delta_t[0]
             advantage_lst.append([advantage])
         advantage_lst.reverse()
-        advantage = torch.tensor(advantage_lst, dtype=torch.float)
+        advantage = torch.tensor(advantage_lst, dtype=torch.float).to(device)
 
         # 旧策略和新策略之间的比率
         pi = self.pi(s, softmax_dim=1)
@@ -110,7 +120,7 @@ class PPO(nn.Module):
         
 def main():
     env = gym.make('CartPole-v1')
-    model = PPO()
+    model = PPO().to(device)
     score = 0.0
     print_interval = 20
     
@@ -119,7 +129,7 @@ def main():
         done = False
         while not done:
             for t in range(T_horizon):
-                prob = model.pi(torch.from_numpy(s).float())
+                prob = model.pi(torch.from_numpy(s).float().to(device))
                 m = Categorical(prob)
                 a = m.sample().item()
                 s_prime, r, done, truncated, info = env.step(a)
