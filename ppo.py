@@ -1,3 +1,4 @@
+'''PPO(Proximal Policy Optimization) 近端策略优化 最大化累计奖励'''
 import gym
 import torch
 import torch.nn as nn
@@ -35,20 +36,25 @@ class PPO(nn.Module):
         self.fc_v  = nn.Linear(256,1)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)    
     
+    # 定义策略函数，得到每个行动的概率
     def pi(self, x, softmax_dim = 0):
         x = F.relu(self.fc1(x))
         x = self.fc_pi(x)
         prob = F.softmax(x, dim=softmax_dim)
         return prob
     
+    
+    # 定义价值函数，返回对当前状态价值的估计
     def v(self, x):
         x = F.relu(self.fc1(x))
         v = self.fc_v(x)
         return v
     
+    # 收集每一步的transition
     def put_data(self, transition):
         self.data.append(transition)
         
+    # 数据转换
     def make_batch(self):
         s_lst, a_lst, r_lst, s_prime_lst, prob_a_lst, done_lst = [], [], [], [], [], []
         for transition in self.data:
@@ -68,14 +74,18 @@ class PPO(nn.Module):
         self.data = []
         return s, a, r, s_prime, done_mask, prob_a
     
+    # 更新策略网络和价值网络
     def train_net(self):
+        # 生成一批数据
         s, a, r, s_prime, done_mask, prob_a = self.make_batch()
         
+        # 计算TD目标
         for i in range(K_epoch):
             td_target = r + gamma * self.v(s_prime) * done_mask
         delta = td_target - self.v(s)
         delta = delta.detach().numpy()
 
+        # 计算有事函数
         advantage_lst = []
         advantage = 0.0
         for delta_t in delta[::-1]:
@@ -84,10 +94,12 @@ class PPO(nn.Module):
         advantage_lst.reverse()
         advantage = torch.tensor(advantage_lst, dtype=torch.float)
 
+        # 旧策略和新策略之间的比率
         pi = self.pi(s, softmax_dim=1)
         pi_a = pi.gather(1,a)
         ratio = torch.exp(torch.log(pi_a) - torch.log(prob_a))  # a/b == exp(log(a)-log(b))
 
+        # 计算损失函数
         surr1 = ratio * advantage
         surr2 = torch.clamp(ratio, 1-eps_clip, 1+eps_clip) * advantage
         loss = -torch.min(surr1, surr2) + F.smooth_l1_loss(self.v(s) , td_target.detach())
