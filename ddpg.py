@@ -7,6 +7,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+import swanlab
+
+# swanlab init
+swanlab.init(
+    experiment_name="ddpg_pendulum",
+    description="Deep Deterministic Policy Gradient (DDPG) on Pendulum-v1",
+    logdir="./swanlog",
+)
+
 #Hyperparameters
 lr_mu        = 0.0005
 lr_q         = 0.001
@@ -139,6 +148,7 @@ def main():
         
         if n_epi%print_interval==0 and n_epi!=0:
             print("# of episode :{}, avg score : {:.1f}".format(n_epi, score/print_interval))
+            swanlab.log({"episode": n_epi, "score": score/print_interval})
             score = 0.0
 
     env.close()
