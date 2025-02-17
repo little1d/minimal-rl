@@ -12,7 +12,6 @@ import torch.optim as optim
 swanlab.init(
     experiment_name="dqn",
     description= "a simple rl task",
-    logdir="./swanlog",
 )
 
 
